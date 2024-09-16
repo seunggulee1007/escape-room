@@ -4,7 +4,66 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support import expected_conditions as EC
+from datetime import datetime
+import time
+import argparse
+
+from selenium.common.exceptions import NoAlertPresentException
+
+# 정각까지 대기하는 함수
+def wait_until_midnight():
+    while True:
+        # 현재 시간을 확인
+        now = datetime.now()
+        # 00:00:00 정각인지 확인
+        if now.hour == 0 and now.minute == 0 and now.second == 0:
+            print("It's midnight! Executing the next code...")
+            break
+        # 1초 대기 후 다시 확인
+        time.sleep(1)
+
+
+def get_room_time(time_str):
+    match time_str:
+        case "10:00":
+            return "25"
+        case "10:20":
+            return "36"
+        case "11:30":
+            return "5"
+        case "11:50":
+            return "35"
+        case "13:00":
+            return "6"
+        case "13:20":
+            return "34"
+        case "14:30":
+            return "7"
+        case "14:50":
+            return "33"
+        case "16:00":
+            return "8"
+        case "16:20":
+            return "32"
+        case "17:30":
+            return "9"
+        case "17:50":
+            return "31"
+        case "19:00":
+            return "10"
+        case "19:20":
+            return "30"
+        case "20:30":
+            return "11"
+        case "20:50":
+            return "29"
+        case "22:00":
+            return "12"
+        case "22:20":
+            return "28"
+        case _:
+            return "Invalid time"
+
 
 class DanPyeon:
     def __init__(self):
@@ -15,47 +74,97 @@ class DanPyeon:
         options.add_experimental_option("detach", True)
         self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         
-    def login(self, idx, day):
-        #self.driver.get("https://www.dpsnnn.com/reserve_g")
-        self.driver.get("https://www.dpsnnn.com/reserve_g/?idx="+idx+"&day="+day)
+    def login(self, idx, day, user_id, pwd):
+        idx = get_room_time(idx)
+        self.driver.get("https://www.dpsnnn.com/reserve_g?idx="+idx+"&day="+day)
         self.driver.implicitly_wait(10)
-        self.closeAlert()
+        self.close_alert_until_none()
         self.driver.find_element(By.LINK_TEXT, "로그인").click()
         self.driver.implicitly_wait(10)
         username = self.driver.find_element(By.NAME, "uid")
 
-        username.send_keys("leesg107@naver.com")
-        password = self.driver.find_element(By.NAME, "passwd")
-        password.send_keys("chldPfls1!")
+        username.send_keys(user_id)
+        input_password = self.driver.find_element(By.NAME, "passwd")
+        input_password.send_keys(pwd)
 
-        password.send_keys(Keys.RETURN)
-        self.driver.implicitly_wait(20)
-        self.closeAlert()
+        input_password.send_keys(Keys.RETURN)
+        time.sleep(1)
+        self.close_alert_until_none()
 
 
-    def go_reservation_page(self, idx, day):
-        self.driver.get("https://www.dpsnnn.com/reserve_g/?idx="+idx+"&day="+day)
+    # alert 창이 모두 닫힐때 까지 닫음
+    def close_alert_until_none(self, is_click=False, max_attempts=10, wait_time=1):
+        attempts = 0
+        while attempts < max_attempts:
+            try:
+                if is_click:
+                    # 버튼 클릭
+                    button = self.driver.find_element(By.LINK_TEXT, "예약하기")
+                    button.click()
+                    print("Button clicked.")
+                # alert 창으로 전환
+                alert = self.driver.switch_to.alert
+                # alert 닫기
+                alert.accept()  # 또는 alert.dismiss()를 사용할 수 있다.
+                print("Alert was closed.")
+                # 일정 시간 대기 (alert 창이 다시 나타날 수 있으니 대기)
+                time.sleep(wait_time)
+            except NoAlertPresentException:
+                # 더 이상 alert 창이 없을 때 루프를 종료
+                print("No more alert found.")
+                break
+            attempts += 1
+        if attempts == max_attempts:
+            print("Max attempts reached. Alert may still be present.")
+
+    def reservation(self, phone_number, person):
+
+        self.close_alert_until_none(is_click=True)
+
         self.driver.implicitly_wait(10)
 
-    def closeAlert(self):
-        if EC.alert_is_present():
-            try:
-                result = self.driver.switch_to.alert
-                result.accept()
-            except:
-                pass
+        call = self.driver.find_element(By.NAME, "orderer_call")
+        call.send_keys(phone_number)
+
+        # //*[@id="shopFormWrap"]/div/div[6]/label/span
+        radio_button = self.driver.find_element(By.XPATH, '//*[@id="shopFormWrap"]/div/div['+str(int(person)+1)+']/label/span')
+        radio_button.click()
+
+        # name 속성이 'agree_cancel'인 체크박스 선택 및 클릭
+        agree_cancel = self.driver.find_element(By.XPATH, '//*[@id="order_form_wrap"]/div[1]/div[4]/div/div/div/div/div/label/span')
+        agree_cancel.click()
+
+        # id 속성이 'paymentAllCheck'인 체크박스 선택 및 클릭
+        payment_all_check = self.driver.find_element(By.XPATH, '//*[@id="order_form_wrap"]/div[2]/div[4]/div/div[1]/label/span')
+        payment_all_check.click()
+
+        self.driver.find_element(By.LINK_TEXT, "결제하기").click()
+
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Process multiple arguments.")
+
+    parser.add_argument("time", help="방탈출 시간을 입력합니다.")
+    parser.add_argument("day", help="방탈출 날짜를 입력해 줍니다. 포맷은 'yyyy-MM-dd'")
+    parser.add_argument("user_id", help="단편선 로그인 아이디를 입력합니다.")
+    parser.add_argument("password", help="단편선 로그인 비밀번호를 입력합니다.")
+    parser.add_argument("phone_number", help="예약시 입력할 전화번호를 입력합니다.('-'을 제외하고 입력합니다).")
+    parser.add_argument("person", help="예약시 입력할 전화번호를 입력합니다.('-'을 제외하고 입력합니다).")
+
+    args = parser.parse_args()
+    request_time = args.time
+
+    request_day = args.day
+    user = args.user_id
+    password = args.password
+    response_phone = args.phone_number
+    request_person = args.person
+
     danPyeon = DanPyeon()
     danPyeon.open_chrome()
-    danPyeon.login("25", "2024-09-18")
-    # 그림자 없는 상자    사람들은 그것을 행복이라 부르기로 했다
-    # 10:00 25          10:20 36
-    # 11:30 5           11:50 35
-    # 13:00 6           13:20 34
-    # 14:30 7           14:50 33
-    # 16:00 8           16:20 32
-    # 17:30 9           17:50 31
-    # 19:00 10          19:20 30
-    # 20:30 11          20:50 29
-    # 22:00 12          22:20 28
-    # danPyeon.go_reservation_page(idx="36", day="2024-09-18")
+    danPyeon.login(idx=request_time, day=request_day, user_id=user, pwd=password)
+    # 정각까지 대기
+    wait_until_midnight()
+
+    # 예약 프로세스 시작
+    danPyeon.reservation(response_phone, request_person)
