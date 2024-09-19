@@ -16,14 +16,72 @@ def wait_until_midnight():
         # 현재 시간을 확인
         now = datetime.now()
         # 00:00:00 정각인지 확인
-        if now.hour == 0 and now.minute == 0 and now.second == 0:
+        if now.hour == 17 and now.minute == 33 and now.second == 0:
             print("It's midnight! Executing the next code...")
             break
         # 1초 대기 후 다시 확인
         time.sleep(1)
 
+def get_room_time(time_str: str) -> str:
+    match time_str:
+        case "10:30":
+            return "25"
+        case "10:15":
+            return "36"
+        case "10:00":
+            return "47"
+        case "12:00":
+            return "5"
+        case "11:45":
+            return "35"
+        case "11:30":
+            return "46"
+        case "13:30":
+            return "6"
+        case "13:15":
+            return "34"
+        case "13:00":
+            return "45"
+        case "15:00":
+            return "7"
+        case "14:45":
+            return "33"
+        case "14:30":
+            return "44"
+        case "16:30":
+            return "8"
+        case "16:15":
+            return "32"
+        case "16:00":
+            return "43"
+        case "18:00":
+            return "9"
+        case "17:45":
+            return "31"
+        case "17:30":
+            return "42"
+        case "19:30":
+            return "10"
+        case "19:15":
+            return "30"
+        case "19:00":
+            return "41"
+        case "21:00":
+            return "11"
+        case "20:45":
+            return "29"
+        case "20:30":
+            return "40"
+        case "22:30":
+            return "12"
+        case "22:15":
+            return "28"
+        case "22:00":
+            return "39"
+        case _:
+            return "Time not found"
 
-def get_room_time(time_str):
+def get_room_time_kangnam(time_str):
     match time_str:
         case "10:00":
             return "25"
@@ -74,9 +132,11 @@ class DanPyeon:
         options.add_experimental_option("detach", True)
         self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
         
-    def login(self, idx, day, user_id, pwd):
-        idx = get_room_time(idx)
-        self.driver.get("https://www.dpsnnn.com/reserve_g?idx="+idx+"&day="+day)
+    def login(self, idx, day, user_id, pwd, is_kangnam=True):
+        idx = self.get_by_room_time(idx, is_kangnam)
+        url = self.get_url_by_kangnam(day, idx, is_kangnam)
+
+        self.driver.get(url)
         self.driver.implicitly_wait(10)
         self.close_alert_until_none()
         self.driver.find_element(By.LINK_TEXT, "로그인").click()
@@ -91,6 +151,19 @@ class DanPyeon:
         time.sleep(1)
         self.close_alert_until_none()
 
+    def get_url_by_kangnam(self, day, idx, is_kangnam):
+        url = "https://dpsnnn-s.imweb.me/reserve_ss"
+        if is_kangnam:
+            url = "https://www.dpsnnn.com/reserve_g"
+        parameter = "?idx=" + idx + "&day=" + day
+        return url + parameter
+
+    def get_by_room_time(self, idx, is_kangnam):
+        if is_kangnam:
+            idx = get_room_time_kangnam(idx)
+        else:
+            idx = get_room_time(idx)
+        return idx
 
     # alert 창이 모두 닫힐때 까지 닫음
     def close_alert_until_none(self, is_click=False, max_attempts=10, wait_time=1):
@@ -117,7 +190,7 @@ class DanPyeon:
         if attempts == max_attempts:
             print("Max attempts reached. Alert may still be present.")
 
-    def reservation(self, phone_number, person):
+    def reservation(self, phone_number, person, is_kangnam=True):
 
         self.close_alert_until_none(is_click=True)
 
@@ -125,11 +198,16 @@ class DanPyeon:
 
         call = self.driver.find_element(By.NAME, "orderer_call")
         call.send_keys(phone_number)
-
+        person_cnt = str(int(person)+1)
+        radio_path = '//*[@id="shopFormWrap"]/div/div['+person_cnt+']/label'
+        if is_kangnam:
+            radio_path = '//*[@id="shopFormWrap"]/div/div['+str(int(person)+1)+']/label/span'
         # //*[@id="shopFormWrap"]/div/div[6]/label/span
-        radio_button = self.driver.find_element(By.XPATH, '//*[@id="shopFormWrap"]/div/div['+str(int(person)+1)+']/label/span')
+
+        radio_button = self.driver.find_element(By.XPATH, radio_path)
         radio_button.click()
 
+        # //*[@id="order_form_wrap"]/div[1]/div[4]/div/div/div/div/div/label/span
         # name 속성이 'agree_cancel'인 체크박스 선택 및 클릭
         agree_cancel = self.driver.find_element(By.XPATH, '//*[@id="order_form_wrap"]/div[1]/div[4]/div/div/div/div/div/label/span')
         agree_cancel.click()
@@ -138,7 +216,7 @@ class DanPyeon:
         payment_all_check = self.driver.find_element(By.XPATH, '//*[@id="order_form_wrap"]/div[2]/div[4]/div/div[1]/label/span')
         payment_all_check.click()
 
-        self.driver.find_element(By.LINK_TEXT, "결제하기").click()
+        # self.driver.find_element(By.LINK_TEXT, "결제하기").click()
 
 
 if __name__ == '__main__':
@@ -150,7 +228,7 @@ if __name__ == '__main__':
     parser.add_argument("password", help="단편선 로그인 비밀번호를 입력합니다.")
     parser.add_argument("phone_number", help="예약시 입력할 전화번호를 입력합니다.('-'을 제외하고 입력합니다).")
     parser.add_argument("person", help="예약시 입력할 전화번호를 입력합니다.('-'을 제외하고 입력합니다).")
-
+    parser.add_argument("is_kangnam", help="강남인지 여부를 입력합니다. 기본값은 True입니다.")
     args = parser.parse_args()
     request_time = args.time
 
@@ -159,12 +237,13 @@ if __name__ == '__main__':
     password = args.password
     response_phone = args.phone_number
     request_person = args.person
+    kangnam = args.is_kangnam == "True"
 
     danPyeon = DanPyeon()
     danPyeon.open_chrome()
-    danPyeon.login(idx=request_time, day=request_day, user_id=user, pwd=password)
+    danPyeon.login(idx=request_time, day=request_day, user_id=user, pwd=password, is_kangnam=kangnam)
     # 정각까지 대기
     wait_until_midnight()
 
     # 예약 프로세스 시작
-    danPyeon.reservation(response_phone, request_person)
+    danPyeon.reservation(response_phone, request_person, kangnam)

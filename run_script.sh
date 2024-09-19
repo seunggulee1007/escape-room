@@ -11,12 +11,24 @@
 # 20:30           20:50
 # 22:00           22:20
 
+# 문장             자격               별
+# 10:30           10:15             10:00
+# 12:00           11:45             11:30
+# 13:30           13:15             13:00
+# 15:00           14:45             14:30
+# 16:30           16:15             16:00
+# 18:00           17:45             17:30
+# 19:30           19:15             19:00
+# 21:00           20:45             20:30
+# 22:30           22:15             22:00
+
 # 매개변수 설정
 TIME="" # 위의 시간을 입력
 DAY="" # 원하는 날짜 입력. 보통 현재 일자 기준 1주일 뒤가 열림
 USER_ID="" # 단편선 아이디
 PASSWORD="" # 단편선 비밀번호
 PHONE_NUMBER="" # 예약시 입력할 휴대폰 번호
-PERSON=4 # 입장할 인원
+PERSON=4 # 입장할 인원 ( 강남은 최대 5명, 성수는 최대 6명 까지 가능 )
+IS_KANGNAM=True
 
-./dist/main "$TIME" "$DAY" "$USER_ID" "$PASSWORD" "$PHONE_NUMBER" "$PERSON"
+./dist/reservation "$TIME" "$DAY" "$USER_ID" "$PASSWORD" "$PHONE_NUMBER" "$PERSON" "$IS_KANGNAM"
