@@ -106,7 +106,7 @@ def start_waiting():
     reservation_data["people"] = combo_people.get()
 
     # 대기 시작 시 남은 시간 업데이트
-    update_countdown()
+    #update_countdown()
     # 스레드에서 대기 실행
     thread = threading.Thread(target=wait_until_seven)
     thread.daemon = True
@@ -199,7 +199,7 @@ def update_countdown():
         return
 
     current_time = time.strftime("%H:%M:%S")
-    target_time = "19:00:00"
+    target_time = "14:07:50"
 
     # 현재 시간과 목표 시간 비교
     current_struct = time.strptime(current_time, "%H:%M:%S")
